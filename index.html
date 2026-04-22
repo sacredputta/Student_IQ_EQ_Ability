@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Communication Scorer</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max_width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        label { font-weight: bold; margin-top: 15px; display: block; }
+        textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px; font-size: 14px; }
+        input[type="number"] { width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 5px; cursor: pointer; margin-top: 20px; width: 100%; transition: background 0.3s; }
+        button:hover { background-color: #218838; }
+        
+        /* Result Section */
+        #results { display: none; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .score-circle { width: 100px; height: 100px; background: #28a745; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; margin: 0 auto 20px; }
+        .category-box { background: #f9f9f9; padding: 15px; margin-bottom: 15px; border-left: 5px solid #007bff; border-radius: 4px; }
+        .cat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .cat-title { font-weight: bold; color: #555; font-size: 16px; }
+        .cat-score { background: #007bff; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+        .cat-feedback { color: #666; font-size: 14px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📝 AI Communication Scorer</h1>
+    <p style="text-align: center; color: #666;">Paste your introduction transcript below to get analyzed.</p>
+
+    <label for="transcript">Transcript Text:</label>
+    <textarea id="transcript" placeholder="Hello everyone, myself..."></textarea>
+
+    <label for="duration">Duration (in seconds):</label>
+    <input type="number" id="duration" placeholder="e.g. 52">
+
+    <button onclick="analyzeText()">Analyze Score</button>
+
+    <div id="results">
+        <div class="score-circle" id="totalScore">0</div>
+        <h3 style="text-align: center;">Detailed Feedback</h3>
+        <div id="breakdown"></div>
+    </div>
+</div>
+
+<script>
+    async function analyzeText() {
+        const transcript = document.getElementById('transcript').value;
+        const duration = document.getElementById('duration').value;
+        const resultsDiv = document.getElementById('results');
+        const breakdownDiv = document.getElementById('breakdown');
+        const totalScoreEl = document.getElementById('totalScore');
+
+        if (!transcript || !duration) {
+            alert("Please enter both transcript and duration.");
+            return;
+        }
+
+        // Change button text to show processing
+        document.querySelector('button').innerText = "Analyzing...";
+
+        try {
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transcript, duration })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
+            // Update Total Score
+            totalScoreEl.innerText = data.total_score;
+            
+            // Clear previous results
+            breakdownDiv.innerHTML = '';
+
+            // Helper function to create result cards
+            function createCard(title, score, feedback) {
+                return `
+                    <div class="category-box">
+                        <div class="cat-header">
+                            <span class="cat-title">${title}</span>
+                            <span class="cat-score">Score: ${score}</span>
+                        </div>
+                        <div class="cat-feedback">Feedback: ${feedback}</div>
+                    </div>
+                `;
+            }
+
+            // --- BUILD HTML USING FLAT DATA STRUCTURE ---
+            
+            // Content & Structure Section
+            let html = `<h4>Content & Structure</h4>`;
+            // Note: We use generic feedback because the Python file isn't sending the message strings
+            html += createCard("Salutation", data.Salutation_Score, "Based on greeting words used.");
+            html += createCard("Keywords", data.Keyword_Score, "Based on relevant topics mentioned.");
+            html += createCard("Flow", data.Flow_Score, "Based on logical order of introduction.");
+            
+            // Speech Rate
+            html += `<h4>Delivery</h4>`;
+            html += createCard("Speech Rate", data.Speech_Score, "Based on words per minute (WPM).");
+            
+            // Language
+            html += `<h4>Language Quality</h4>`;
+            html += createCard("Grammar", data.Grammar_Score, "Based on grammatical correctness.");
+            // Note: Matching the spelling 'Vocabolary_Score' from your python file
+            html += createCard("Vocabulary", data.Vocabolary_Score, "Based on word variety (TTR).");
+            
+            // Clarity & Engagement
+            html += `<h4>Impact</h4>`;
+            html += createCard("Clarity", data.Clarity_Score, "Based on use of filler words.");
+            html += createCard("Engagement", data.Engagement_Score, "Based on sentiment analysis.");
+
+            breakdownDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert("An error occurred while connecting to the server.");
+        } finally {
+            document.querySelector('button').innerText = "Analyze Score";
+        }
+    }
+</script>
+
+</body>
+</html>
